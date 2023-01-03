@@ -14,6 +14,8 @@ struct Vertex {
 struct Stage {
     pipeline: Pipeline,
     bindings: Bindings,
+    texture: Texture,
+    time: f64,
 }
 
 impl Stage {
@@ -30,13 +32,7 @@ impl Stage {
         let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
         let index_buffer = Buffer::immutable(ctx, BufferType::IndexBuffer, &indices);
 
-        let pixels: [u8; 4 * 4 * 4] = [
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
-            0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        ];
+        let pixels = create_pixels(4, 4);
         let texture = Texture::from_rgba8(ctx, 4, 4, &pixels);
 
         let bindings = Bindings {
@@ -57,12 +53,32 @@ impl Stage {
             shader,
         );
 
-        Stage { pipeline, bindings }
+        Stage {
+            pipeline,
+            bindings,
+            texture,
+            time: date::now(),
+        }
     }
 }
 
+fn create_pixels(w: usize, h: usize) -> Vec<u8> {
+    let mut pixels = vec![0; w * h * 4];
+    pixels.fill_with(|| quad_rand::gen_range(0, 256) as u8);
+    pixels
+}
+
 impl EventHandler for Stage {
-    fn update(&mut self, _ctx: &mut Context) {}
+    fn update(&mut self, ctx: &mut Context) {
+        if date::now() - self.time > 1.0 {
+            self.time = date::now();
+            let factor = if self.texture.width < 256 { 2.0 } else { 0.5 };
+            let w = self.texture.width as f32 * factor;
+            let h = self.texture.height as f32 * factor;
+            let pixels = create_pixels(w as _, h as _);
+            self.texture.resize(ctx, w as _, h as _, Some(&pixels));
+        }
+    }
 
     fn draw(&mut self, ctx: &mut Context) {
         let t = date::now();
